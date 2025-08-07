@@ -250,6 +250,25 @@ struct drm_hdmi_info {
 	/** @y420_dc_modes: bitmap of deep color support index */
 	u8 y420_dc_modes;
 
+	/**
+	 * @y422_vdb_modes: bitmap of modes which can support ycbcr422
+	 * output only (not normal RGB/YCBCR444/420 outputs). The max VIC
+	 * defined by the CEA-861-G spec is 219, so the size is 256 bits to map
+	 * up to 256 VICs.
+	 */
+	unsigned long y422_vdb_modes[BITS_TO_LONGS(256)];
+
+	/**
+	 * @y422_cmdb_modes: bitmap of modes which can support ycbcr422
+	 * output also, along with normal HDMI outputs. The max VIC defined by
+	 * the CEA-861-G spec is 219, so the size is 256 bits to map up to 256
+	 * VICs.
+	 */
+	unsigned long y422_cmdb_modes[BITS_TO_LONGS(256)];
+
+	/** @y422_cmdb_map: bitmap of SVD index, to extract vcb modes */
+	u64 y422_cmdb_map;
+
 	/** @max_frl_rate_per_lane: support fixed rate link */
 	u8 max_frl_rate_per_lane;
 
