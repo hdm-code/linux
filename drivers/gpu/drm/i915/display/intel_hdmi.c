@@ -727,6 +727,8 @@ intel_hdmi_compute_avi_infoframe(struct intel_encoder *encoder,
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
 		frame->colorspace = HDMI_COLORSPACE_YUV420;
+	else if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR422)
+		frame->colorspace = HDMI_COLORSPACE_YUV422;
 	else if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
 		frame->colorspace = HDMI_COLORSPACE_YUV444;
 	else
@@ -1807,6 +1809,11 @@ static bool intel_hdmi_is_ycbcr420(const struct intel_crtc_state *crtc_state)
 	return crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420;
 }
 
+static bool intel_hdmi_is_ycbcr422(const struct intel_crtc_state *crtc_state)
+{
+	return crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR422;
+}
+
 static int hdmi_port_clock_limit(struct intel_hdmi *hdmi,
 				 bool respect_downstream_limits,
 				 bool has_hdmi_sink)
@@ -2005,6 +2012,17 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 
 	status = intel_hdmi_mode_clock_valid(connector, clock, has_hdmi_sink, ycbcr_420_only);
 	if (status != MODE_OK) {
+		bool ycbcr_422_possible = (connector->display_info.color_formats & DRM_COLOR_FORMAT_YCBCR422) &&
+					  drm_mode_is_422(&connector->display_info, mode);
+		
+		/* Try 4:2:2 fallback first if available */
+		if (!ycbcr_420_only && ycbcr_422_possible) {
+			status = intel_hdmi_mode_clock_valid(connector, clock, has_hdmi_sink, false);
+			if (status == MODE_OK)
+				return status;
+		}
+		
+		/* Try 4:2:0 fallback if 4:2:2 failed or unavailable */
 		if (ycbcr_420_only ||
 		    !connector->ycbcr_420_allowed ||
 		    !drm_mode_is_420_also(&connector->display_info, mode))
@@ -2181,10 +2199,13 @@ static bool intel_hdmi_has_audio(struct intel_encoder *encoder,
 
 static enum intel_output_format
 intel_hdmi_output_format(struct intel_connector *connector,
-			 bool ycbcr_420_output)
+			 bool ycbcr_420_output, bool ycbcr_422_output)
 {
 	if (connector->base.ycbcr_420_allowed && ycbcr_420_output)
 		return INTEL_OUTPUT_FORMAT_YCBCR420;
+	else if (ycbcr_422_output && 
+		 (connector->base.display_info.color_formats & DRM_COLOR_FORMAT_YCBCR422))
+		return INTEL_OUTPUT_FORMAT_YCBCR422;
 	else
 		return INTEL_OUTPUT_FORMAT_RGB;
 }
@@ -2199,25 +2220,39 @@ static int intel_hdmi_compute_output_format(struct intel_encoder *encoder,
 	const struct drm_display_info *info = &connector->base.display_info;
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	bool ycbcr_420_only = drm_mode_is_420_only(info, adjusted_mode);
+	bool ycbcr_422_only = drm_mode_is_422_only(info, adjusted_mode);
+	bool ycbcr_422_also = drm_mode_is_422_also(info, adjusted_mode);
 	int ret;
 
-	crtc_state->output_format = intel_hdmi_output_format(connector, ycbcr_420_only);
+	crtc_state->output_format = intel_hdmi_output_format(connector, ycbcr_420_only, ycbcr_422_only || ycbcr_422_also);
 
 	if (ycbcr_420_only && !intel_hdmi_is_ycbcr420(crtc_state)) {
 		drm_dbg_kms(&i915->drm,
 			    "YCbCr 4:2:0 mode but YCbCr 4:2:0 output not possible. Falling back to RGB.\n");
 		crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
+	} else if (ycbcr_422_only && !intel_hdmi_is_ycbcr422(crtc_state)) {
+		drm_dbg_kms(&i915->drm,
+			    "YCbCr 4:2:2 mode but YCbCr 4:2:2 output not possible. Falling back to RGB.\n");
+		crtc_state->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	}
 
 	ret = intel_hdmi_compute_clock(encoder, crtc_state, respect_downstream_limits);
 	if (ret) {
-		if (intel_hdmi_is_ycbcr420(crtc_state) ||
-		    !connector->base.ycbcr_420_allowed ||
-		    !drm_mode_is_420_also(info, adjusted_mode))
-			return ret;
-
-		crtc_state->output_format = intel_hdmi_output_format(connector, true);
-		ret = intel_hdmi_compute_clock(encoder, crtc_state, respect_downstream_limits);
+		/* Try 4:2:2 fallback if we're currently using RGB and 4:2:2 is available */
+		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_RGB &&
+		    (info->color_formats & DRM_COLOR_FORMAT_YCBCR422) &&
+		    (ycbcr_422_also || drm_mode_is_422(info, adjusted_mode))) {
+			crtc_state->output_format = intel_hdmi_output_format(connector, false, true);
+			ret = intel_hdmi_compute_clock(encoder, crtc_state, respect_downstream_limits);
+		}
+		
+		/* Try 4:2:0 fallback if 4:2:2 failed and 4:2:0 is available */
+		if (ret && !intel_hdmi_is_ycbcr420(crtc_state) &&
+		    connector->base.ycbcr_420_allowed &&
+		    drm_mode_is_420_also(info, adjusted_mode)) {
+			crtc_state->output_format = intel_hdmi_output_format(connector, true, false);
+			ret = intel_hdmi_compute_clock(encoder, crtc_state, respect_downstream_limits);
+		}
 	}
 
 	return ret;

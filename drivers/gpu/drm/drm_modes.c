@@ -2140,3 +2140,62 @@ bool drm_mode_is_420(const struct drm_display_info *display,
 		drm_mode_is_420_also(display, mode);
 }
 EXPORT_SYMBOL(drm_mode_is_420);
+
+/**
+ * drm_mode_is_422_only - if a given videomode can be only supported in YCBCR422
+ * output format
+ *
+ * @display: display under action
+ * @mode: video mode to be tested.
+ *
+ * Returns:
+ * true if the mode can be supported in YCBCR422 format
+ * false if not.
+ */
+bool drm_mode_is_422_only(const struct drm_display_info *display,
+			  const struct drm_display_mode *mode)
+{
+	u8 vic = drm_match_cea_mode(mode);
+
+	return test_bit(vic, display->hdmi.y422_vdb_modes);
+}
+EXPORT_SYMBOL(drm_mode_is_422_only);
+
+/**
+ * drm_mode_is_422_also - if a given videomode can be supported in YCBCR422
+ * output format also (along with RGB/YCBCR444/420)
+ *
+ * @display: display under action.
+ * @mode: video mode to be tested.
+ *
+ * Returns:
+ * true if the mode can be support YCBCR422 format
+ * false if not.
+ */
+bool drm_mode_is_422_also(const struct drm_display_info *display,
+			  const struct drm_display_mode *mode)
+{
+	u8 vic = drm_match_cea_mode(mode);
+
+	return test_bit(vic, display->hdmi.y422_cmdb_modes);
+}
+EXPORT_SYMBOL(drm_mode_is_422_also);
+
+/**
+ * drm_mode_is_422 - if a given videomode can be supported in YCBCR422
+ * output format
+ *
+ * @display: display under action.
+ * @mode: video mode to be tested.
+ *
+ * Returns:
+ * true if the mode can be support YCBCR422 format
+ * false if not.
+ */
+bool drm_mode_is_422(const struct drm_display_info *display,
+		     const struct drm_display_mode *mode)
+{
+	return drm_mode_is_422_only(display, mode) ||
+		drm_mode_is_422_also(display, mode);
+}
+EXPORT_SYMBOL(drm_mode_is_422);

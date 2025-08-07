@@ -3565,6 +3565,7 @@ static void bdw_set_pipemisc(const struct intel_crtc_state *crtc_state)
 		val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
 
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420 ||
+	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR422 ||
 	    crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
 		val |= PIPEMISC_OUTPUT_COLORSPACE_YUV;
 
@@ -5186,6 +5187,7 @@ static void snprintf_output_types(char *buf, size_t len,
 static const char * const output_format_str[] = {
 	[INTEL_OUTPUT_FORMAT_RGB] = "RGB",
 	[INTEL_OUTPUT_FORMAT_YCBCR420] = "YCBCR4:2:0",
+	[INTEL_OUTPUT_FORMAT_YCBCR422] = "YCBCR4:2:2",
 	[INTEL_OUTPUT_FORMAT_YCBCR444] = "YCBCR4:4:4",
 };
 

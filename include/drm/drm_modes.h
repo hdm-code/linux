@@ -442,6 +442,12 @@ bool drm_mode_is_420_also(const struct drm_display_info *display,
 			  const struct drm_display_mode *mode);
 bool drm_mode_is_420(const struct drm_display_info *display,
 		     const struct drm_display_mode *mode);
+bool drm_mode_is_422_only(const struct drm_display_info *display,
+			  const struct drm_display_mode *mode);
+bool drm_mode_is_422_also(const struct drm_display_info *display,
+			  const struct drm_display_mode *mode);
+bool drm_mode_is_422(const struct drm_display_info *display,
+		     const struct drm_display_mode *mode);
 
 struct drm_display_mode *drm_cvt_mode(struct drm_device *dev,
 				      int hdisplay, int vdisplay, int vrefresh,
