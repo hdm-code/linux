@@ -4047,6 +4047,9 @@ do_cea_modes(struct drm_connector *connector, const u8 *db, u8 len)
 			if (i < 64 && hdmi->y420_cmdb_map & (1ULL << i))
 				drm_add_cmdb_modes(connector, db[i]);
 
+			if (i < 64 && hdmi->y422_cmdb_map & (1ULL << i))
+				drm_add_cmdb_modes_422(connector, db[i]);
+
 			drm_mode_probed_add(connector, mode);
 			modes++;
 		}
